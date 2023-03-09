@@ -1,0 +1,19 @@
+name: Try eXo
+
+on:
+  push:
+
+jobs:
+  try:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Setup ngrok 
+        run: docker run -d --name ngrok -e NGROK_AUTHTOKEN=${{ secrets.NGROK_TOKEN }} ngrok/ngrok:alpine http 172.18.0.1:80
+      - name: Start eXo
+        run: |
+          ngrokIP=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ngrok)
+          frontendAddr=$(curl -s $ngrokIP:4040/api/tunnels | jq .tunnels[0].public_url | xargs -r echo | grep -oP 'https://\K\S+')
+          EXO_PROXY_VHOST=${frontendAddr} EXO_PROXY_PORT=443 EXO_PROXY_SSL=true docker-compose -f demo/docker-compose.yml up 
