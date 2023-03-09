@@ -32,4 +32,7 @@ jobs:
             fi
             sleep 1
           done
+          echo ===============================================
           echo "Your server is ready! https://${frontendAddr}"
+          echo ===============================================
+          docker logs -f --tail 100 ${EXO_CONTAINER_NAME}
