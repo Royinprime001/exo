@@ -15,8 +15,21 @@ jobs:
       - name: Start eXo
         run: |
           sleep 2 
-          docker ps
-          docker inspect ngrok
           ngrokIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ngrok)
           frontendAddr=$(curl -s $ngrokIP:4040/api/tunnels | jq .tunnels[0].public_url | xargs -r echo | grep -oP 'https://\K\S+')
-          EXO_PROXY_VHOST=${frontendAddr} EXO_PROXY_PORT=443 EXO_PROXY_SSL=true docker-compose -f demo/docker-compose.yml up 
+          EXO_PROXY_VHOST=${frontendAddr} EXO_PROXY_PORT=443 EXO_PROXY_SSL=true docker-compose -f demo/docker-compose.yml up -d 
+          sleep 2
+          EXO_CONTAINER_NAME=$(docker-compose -f demo/docker-compose.yml ps | cut -d ' '  -f 1 | grep exo)
+          END_STARTUP_MSG="Server startup in"
+          docker logs -f --tail 1000 ${EXO_CONTAINER_NAME} &
+          _tailPID=$!
+          set +e
+          while [ true ]; do
+            if docker logs --tail 100 ${EXO_CONTAINER_NAME} | grep -q "${END_STARTUP_MSG}"; then
+                kill ${_tailPID}
+                wait ${_tailPID} 2>/dev/null
+                break
+            fi
+            sleep 1
+          done
+          echo "Your server is ready! https://${frontendAddr}"
